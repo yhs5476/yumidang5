@@ -15,6 +15,7 @@ import { CategoryGrid } from './components/CategoryGrid';
 import { BottomNav, NavTab } from './components/BottomNav';
 import { DashboardModal } from './components/DashboardModal';
 import { EventDetailModal } from './components/EventDetailModal';
+import { EventAllViewModal } from './components/EventAllViewModal';
 import { CategoryDetailModal } from './components/CategoryDetailModal';
 import { CreateMeetupModal } from './components/CreateMeetupModal';
 
@@ -35,12 +36,13 @@ import { MyPageView } from './components/MyPageView';
 
 import {
   mockAppointment,
+  mockAppointments,
   mockCategories,
   mockEventBanners,
   mockMeetupPosts,
   mockNotifications,
 } from './data/mockData';
-import { CategoryItem, EventBannerItem, MeetupPost, CurrentUser, JoinRequest, ReviewItem, EscrowPayment } from './types';
+import { Appointment, CategoryItem, EventBannerItem, MeetupPost, CurrentUser, JoinRequest, ReviewItem, EscrowPayment } from './types';
 
 export default function App() {
   // Navigation state
@@ -116,6 +118,7 @@ export default function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isKycModalOpen, setIsKycModalOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<EventBannerItem | null>(null);
+  const [isEventAllModalOpen, setIsEventAllModalOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<CategoryItem | null>(null);
 
   // Phase 2: Post Detail & Editing states
@@ -270,6 +273,7 @@ export default function App() {
     },
   ]);
 
+  // 내가 받은 1:1 동행 신청들 (호스트 관점)
   const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([
     {
       id: 'req-init-1',
@@ -297,8 +301,37 @@ export default function App() {
     },
   ]);
 
+  // 내가 신청한 1:1 동행들 (게스트 관점)
+  const [sentRequests, setSentRequests] = useState<JoinRequest[]>([
+    {
+      id: 'req-sent-1',
+      postId: 'post-1',
+      postTitle: '불꽃축제 원효대교 북단 돗자리 명당 1:1 동행 구해요!',
+      requesterId: 'user-default',
+      requesterName: '조*미',
+      requesterAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
+      requesterSugar: 50,
+      message: '불꽃축제 사진 찍는 거 좋아해요! 따뜻한 음료 챙겨서 갈게요 :)',
+      status: 'pending',
+      createdAt: '1시간 전',
+    },
+    {
+      id: 'req-sent-2',
+      postId: 'post-3',
+      postTitle: '국립현대미술관 동시대 미술 도슨트 투어 동행',
+      requesterId: 'user-default',
+      requesterName: '조*미',
+      requesterAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
+      requesterSugar: 50,
+      message: '미술 전시 관람 좋아해서 도슨트 투어 같이 듣고 삼청동 카페 가요!',
+      status: 'accepted',
+      createdAt: '어제',
+    },
+  ]);
+
   // App data states
-  const [appointment, setAppointment] = useState(mockAppointment);
+  const [appointment, setAppointment] = useState<Appointment>(mockAppointment);
+  const [appointments, setAppointments] = useState<Appointment[]>(mockAppointments);
   const [meetupPosts, setMeetupPosts] = useState<MeetupPost[]>(() =>
     mockMeetupPosts.map((p) => ({
       ...p,
@@ -465,6 +498,7 @@ export default function App() {
       createdAt: '방금',
     };
 
+    setSentRequests((prev) => [newReq, ...prev]);
     setJoinRequests((prev) => [newReq, ...prev]);
 
     setNotifications((prev) => [
@@ -516,7 +550,7 @@ export default function App() {
     );
 
     // 3. Update confirmed appointment
-    setAppointment({
+    const newAppointment: Appointment = {
       id: 'apt-' + Date.now(),
       title: targetReq.postTitle,
       category: targetPost?.category || '디저트',
@@ -528,8 +562,12 @@ export default function App() {
       partnerName: targetReq.requesterName,
       partnerAvatar: targetReq.requesterAvatar,
       partnerRole: '참여자',
-      dDay: 'D-2',
-    });
+      dDay: 'D-2 화 15:00',
+      dDayDays: 2,
+      appointmentBadge: '약속 D-2',
+    };
+    setAppointment(newAppointment);
+    setAppointments((prev) => [newAppointment, ...prev]);
 
     // 4. Send system notification
     setNotifications((prev) => [
@@ -775,7 +813,6 @@ export default function App() {
           unreadCount={unreadNotifCount}
           pendingRequestCount={pendingRequestsCount}
           onOpenNotifications={() => setIsNotificationsOpen(true)}
-          onOpenMatchRequests={() => setIsMatchRequestsOpen(true)}
           currentUser={currentUser}
           onOpenAuth={() => setIsAuthModalOpen(true)}
         />
@@ -787,40 +824,18 @@ export default function App() {
             <EventBanner
               events={mockEventBanners}
               onSelectEvent={(event) => setSelectedEvent(event)}
-              onViewAllEvents={() => setSelectedEvent(mockEventBanners[0])}
+              onViewAllEvents={() => setIsEventAllModalOpen(true)}
+              currentWeek={2}
             />
-
-            {/* Phase 3: Pending Host Requests quick banner if any */}
-            {pendingRequestsCount > 0 && (
-              <div className="px-5 mb-3">
-                <button
-                  onClick={() => setIsMatchRequestsOpen(true)}
-                  className="w-full p-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-2xl flex items-center justify-between shadow-md shadow-purple-500/20 active:scale-98 transition-all text-left"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <span className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center text-sm">
-                      📬
-                    </span>
-                    <div>
-                      <p className="text-xs font-bold leading-tight">
-                        도착한 1:1 동행 신청이 <span className="underline">{pendingRequestsCount}건</span> 있습니다!
-                      </p>
-                      <p className="text-[10.5px] text-purple-100 mt-0.5">
-                        신청자의 당도와 메시지를 확인하고 매칭을 확정하세요.
-                      </p>
-                    </div>
-                  </div>
-                  <span className="text-[11px] font-bold bg-white text-[#6c2cf5] px-2.5 py-1 rounded-full shrink-0">
-                    확인
-                  </span>
-                </button>
-              </div>
-            )}
 
             {/* 2. 매칭 확정 약속 카드 */}
             <AppointmentCard
+              appointments={appointments}
               appointment={appointment}
-              onOpenDashboard={() => setIsDashboardOpen(true)}
+              onOpenDashboard={(selectedAppt) => {
+                setAppointment(selectedAppt);
+                setIsDashboardOpen(true);
+              }}
             />
 
             {/* 3. 어떤 동행을 찾고 계신가요? 12가지 카테고리 그리드 */}
@@ -870,6 +885,11 @@ export default function App() {
               onUpdateAvatar={handleUpdateAvatar}
               reviews={reviews}
               escrowPayments={escrowPayments}
+              sentRequests={sentRequests}
+              receivedRequests={joinRequests}
+              onAcceptRequest={handleAcceptRequest}
+              onRejectRequest={handleRejectRequest}
+              onExploreMeetups={() => setActiveTab('explore')}
             />
           </div>
         )}
@@ -894,6 +914,17 @@ export default function App() {
           onOpenReport={() => setIsReportOpen(true)}
           onSendArrivalNotice={handleSendArrivalNotice}
           onOpenReview={handleOpenReview}
+        />
+
+        {/* Modal: 이벤트 전체보기 (가로 롤링 리스트 + 주차별 필터) */}
+        <EventAllViewModal
+          isOpen={isEventAllModalOpen}
+          onClose={() => setIsEventAllModalOpen(false)}
+          events={mockEventBanners}
+          onSelectEvent={(event) => {
+            setSelectedEvent(event);
+          }}
+          currentWeek={2}
         />
 
         {/* Modal: 이벤트 상세 & 불꽃축제 동행 모임 */}

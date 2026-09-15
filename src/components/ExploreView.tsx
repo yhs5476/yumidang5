@@ -131,9 +131,12 @@ export const ExploreView: React.FC<ExploreViewProps> = ({ posts, onSelectPost })
             <div className="flex items-center justify-between pt-2 text-xs">
               <div className="flex items-center gap-2">
                 <img
-                  src={post.avatar}
+                  src={post.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'}
                   alt={post.author}
-                  className="w-6 h-6 rounded-full object-cover shadow-2xs"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80';
+                  }}
+                  className="w-6 h-6 rounded-full object-cover shadow-2xs bg-gray-100"
                 />
                 <span className="font-bold text-gray-800">{post.author}</span>
                 <span className="text-[#6c2cf5] font-semibold text-[11px]">당도 99 🍯</span>

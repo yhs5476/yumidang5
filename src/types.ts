@@ -6,6 +6,14 @@ export interface EventBannerItem {
   subtitle: string;
   imageUrl: string;
   tag: string;
+  week?: number; // 주차 (1, 2, 3, 4주차)
+  startWeek?: number; // 이벤트 시작 주차 (기본값 week와 동일)
+  period?: string; // 기간 (예: '2026.09.08 ~ 2026.09.14')
+  category?: '팝업' | '전시' | '축제' | '공연' | string;
+  isEnded?: boolean; // 종료 여부 (true면 회색 딤드 처리)
+  aiCurated?: boolean; // AI 자동 크롤링/생성 여부
+  location?: string;
+  description?: string;
 }
 
 export type CompanionType = 'free' | 'pro';
@@ -38,6 +46,7 @@ export interface Appointment {
   id: string;
   status: string;
   dDay: string;
+  dDayDays?: number; // D-day 일수 (예: 1이면 D-1, 7이면 D-7)
   appointmentBadge: string;
   title: string;
   dateTime: string;
@@ -72,6 +81,8 @@ export interface CategoryItem {
     | 'performance'
     | 'shopping'
     | 'flash'
+    | 'now'
+    | 'etc'
     | 'all';
 }
 

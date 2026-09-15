@@ -81,21 +81,28 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
 
           {/* Event Details Section */}
           <div className="p-4 space-y-3.5">
+            {event.isEnded && (
+              <div className="bg-gray-200/80 border border-gray-300 text-gray-700 px-3.5 py-2.5 rounded-2xl text-xs font-semibold flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-gray-500" />
+                <span>이 이벤트는 기간이 종료된 행사입니다. 지난 동행 후기를 확인해보세요.</span>
+              </div>
+            )}
+
             <div className="bg-white p-4 rounded-3xl shadow-[0_2px_12px_rgba(0,0,0,0.03)] space-y-2 text-xs text-gray-600">
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-[#6c2cf5] shrink-0" />
-                <span className="font-bold text-gray-900">2026.9.12(토) 19:20 시작</span>
+                <span className="font-bold text-gray-900">{event.period || '2026.9.12(토) 19:20 시작'}</span>
               </div>
               <div className="flex items-center gap-2">
                 <MapPin className="w-4 h-4 text-[#6c2cf5] shrink-0" />
-                <span className="font-semibold text-gray-800">{event.tag} 여의도 한강공원 일대</span>
+                <span className="font-semibold text-gray-800">{event.location || `${event.tag} 일대`}</span>
               </div>
             </div>
 
             <div className="bg-white p-4 rounded-3xl shadow-[0_2px_12px_rgba(0,0,0,0.03)] space-y-1.5">
               <h4 className="font-bold text-sm text-gray-900">이벤트 소개</h4>
               <p className="text-xs text-gray-600 leading-relaxed">
-                화려한 불꽃과 함께하는 서울의 대표 가을 축제! 혼자 보기 아쉬운 밤하늘을 좋은 이웃과 함께 나누세요. 돗자리 명당 잡기, 사진 찍어주기, 간식 쉐어 등 취향에 맞는 다양한 1:1 동행이 모이고 있습니다.
+                {event.description || event.subtitle || '혼자 보기 아쉬운 축제/전시를 좋은 이웃과 함께 나누세요. 취향에 맞는 다양한 1:1 동행이 모이고 있습니다.'}
               </p>
             </div>
 

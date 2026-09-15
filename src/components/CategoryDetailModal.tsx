@@ -25,10 +25,23 @@ export const CategoryDetailModal: React.FC<CategoryDetailModalProps> = ({
 
   if (!isOpen || !category) return null;
 
+  const isNowCategory =
+    category.id === 'now' ||
+    category.id === 'flash' ||
+    category.name === '지금' ||
+    category.name === '번개';
+
+  const categoryTitle = isNowCategory ? '지금이당!' : `${category.name} 동행`;
+
   const categoryPosts =
     category.iconType === 'all'
       ? posts
-      : posts.filter((p) => p.category === category.name);
+      : posts.filter((p) => {
+          if (isNowCategory) {
+            return p.category === '지금' || p.category === '번개';
+          }
+          return p.category === category.name;
+        });
 
   const filteredPosts = categoryPosts.filter((post) => {
     if (filterRecruitingOnly && post.status === 'closed') return false;
@@ -61,7 +74,7 @@ export const CategoryDetailModal: React.FC<CategoryDetailModalProps> = ({
                 <CategoryIcon type={category.iconType} className="w-4 h-4" />
               </div>
               <h2 className="text-[17px] font-extrabold text-gray-900 tracking-tight">
-                {category.name} 동행
+                {categoryTitle}
               </h2>
             </div>
           </div>
@@ -84,15 +97,28 @@ export const CategoryDetailModal: React.FC<CategoryDetailModalProps> = ({
           <div className="bg-white px-5 pt-3 pb-5 rounded-b-[28px] shadow-[0_4px_20px_rgba(0,0,0,0.02)] space-y-4">
             <div className="flex items-start justify-between">
               <div>
-                <span className="text-[10.5px] font-bold text-[#6c2cf5] bg-purple-50 px-2.5 py-0.5 rounded-full inline-block mb-1.5">
-                  1:1 취향 동행
+                <span className={`text-[10.5px] font-bold px-2.5 py-0.5 rounded-full inline-block mb-1.5 ${
+                  isNowCategory ? 'text-[#ff5d2b] bg-orange-50' : 'text-[#6c2cf5] bg-purple-50'
+                }`}>
+                  {isNowCategory ? '⚡ 번개 급만남 동행' : '1:1 취향 동행'}
                 </span>
                 <h3 className="text-xl font-extrabold text-gray-900 tracking-tight leading-snug">
-                  취향 맞는 이웃과 함께하는<br />
-                  <span className="text-[#6c2cf5]">{category.name}</span>
+                  {isNowCategory ? (
+                    <>
+                      지금 바로 만나는<br />
+                      <span className="text-[#ff5d2b]">지금이당! ⚡</span>
+                    </>
+                  ) : (
+                    <>
+                      취향 맞는 이웃과 함께하는<br />
+                      <span className="text-[#6c2cf5]">{category.name} 동행</span>
+                    </>
+                  )}
                 </h3>
                 <p className="text-xs text-gray-400 mt-1">
-                  모집 중인 1:1 동행 공고를 둘러보세요
+                  {isNowCategory
+                    ? '오늘 지금 바로 만날 수 있는 1:1 번개 동행 목록입니다'
+                    : '모집 중인 1:1 동행 공고를 둘러보세요'}
                 </p>
               </div>
               <div className={`w-13 h-13 rounded-2xl ${category.iconBg} flex items-center justify-center shrink-0 shadow-xs mt-1`}>
@@ -104,7 +130,7 @@ export const CategoryDetailModal: React.FC<CategoryDetailModalProps> = ({
             <div className="relative">
               <input
                 type="text"
-                placeholder={`${category.name} 관련 장소나 키워드 검색...`}
+                placeholder={isNowCategory ? '지금 만날 장소나 키워드 검색...' : `${category.name} 관련 장소나 키워드 검색...`}
                 value={searchKeyword}
                 onChange={(e) => setSearchKeyword(e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 bg-gray-100/80 rounded-2xl text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-purple-200 transition-all"
@@ -141,7 +167,7 @@ export const CategoryDetailModal: React.FC<CategoryDetailModalProps> = ({
                 </div>
                 <div>
                   <p className="text-sm font-bold text-gray-800">
-                    등록된 {category.name} 동행이 없습니다.
+                    등록된 {categoryTitle} 글이 없습니다.
                   </p>
                   <p className="text-xs text-gray-400 mt-0.5">
                     직접 첫 번째 1:1 동행을 제안해보세요!
@@ -227,9 +253,12 @@ export const CategoryDetailModal: React.FC<CategoryDetailModalProps> = ({
                   <div className="flex items-center justify-between pt-3 mt-1">
                     <div className="flex items-center gap-2.5">
                       <img
-                        src={post.avatar}
+                        src={post.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'}
                         alt={post.author}
-                        className="w-8 h-8 rounded-full object-cover shadow-2xs"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80';
+                        }}
+                        className="w-8 h-8 rounded-full object-cover shadow-2xs bg-gray-100"
                       />
                       <div>
                         <span className="text-xs font-bold text-gray-900 block leading-tight">

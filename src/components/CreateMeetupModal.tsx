@@ -91,7 +91,7 @@ export const CreateMeetupModal: React.FC<CreateMeetupModalProps> = ({
 
   if (!isOpen) return null;
 
-  const categories = ['전시', '축제', '식사', '운동', '여행', '클래스', '산책', '스터디', '공연', '쇼핑', '번개'];
+  const categories = ['지금', '전시', '축제', '식사', '운동', '여행', '클래스', '산책', '스터디', '공연', '쇼핑', '기타'];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

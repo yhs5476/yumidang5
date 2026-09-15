@@ -12,6 +12,7 @@ import {
   ShoppingBag,
   Zap,
   LayoutGrid,
+  MoreHorizontal,
 } from 'lucide-react';
 import { CategoryItem } from '../types';
 
@@ -64,9 +65,20 @@ export const CategoryIcon: React.FC<Props> = ({ type, className = 'w-[22px] h-[2
       // 쇼핑 - 쇼핑백
       return <ShoppingBag className={`${className} text-[#6c2cf5]`} strokeWidth={defaultStrokeWidth} />;
 
+    case 'now':
     case 'flash':
-      // 번개 - 번개 아이콘
-      return <Zap className={`${className} text-[#d97706] fill-[#d97706]`} strokeWidth={defaultStrokeWidth} />;
+      // 지금(구 번개) - '당!' 타이포 아이콘
+      return (
+        <span
+          className="font-black text-[17px] text-[#ff5d2b] tracking-tighter leading-none select-none flex items-center justify-center transform scale-105 drop-shadow-xs"
+        >
+          당!
+        </span>
+      );
+
+    case 'etc':
+      // 기타 - 더보기/기타 아이콘
+      return <MoreHorizontal className={`${className} text-[#4b5563]`} strokeWidth={defaultStrokeWidth} />;
 
     case 'all':
       // 전체 - 그리드

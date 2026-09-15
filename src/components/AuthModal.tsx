@@ -113,6 +113,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
     }
   };
 
+  // 전화번호 포맷팅 함수 (숫자 기준 최대 11자리 제한)
+  const formatPhoneNumber = (value: string) => {
+    const digits = value.replace(/[^0-9]/g, '').slice(0, 11);
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7, 11)}`;
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPhoneNumber(e.target.value);
+    setPhone(formatted);
+    if (errorMessage) setErrorMessage('');
+  };
+
   const handleRealNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     // 영문, 숫자, 특수문자, 공백 등 한글(자음, 모음, 완성형) 이외의 문자는 실시간 차단
     const val = e.target.value.replace(/[^ㄱ-ㅎㅏ-ㅣ가-힣]/g, '');
@@ -136,8 +150,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
 
   // 인증번호 발송 시뮬레이션
   const handleSendOtp = () => {
-    if (!phone.trim() || phone.trim().length < 10) {
-      setErrorMessage('올바른 휴대폰 번호를 입력해주세요.');
+    const digits = phone.replace(/[^0-9]/g, '');
+    if (digits.length < 10 || digits.length > 11) {
+      setErrorMessage('올바른 11자리 휴대폰 번호를 입력해주세요.');
       return;
     }
     setErrorMessage('');
@@ -280,41 +295,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
           </button>
         </div>
 
-        {/* Mode Selector Tabs */}
-        <div className="px-5 pt-3 pb-2 flex border-b border-gray-100">
-          <button
-            type="button"
-            onClick={() => {
-              setMode('signin');
-              setErrorMessage('');
-              setInfoMessage('');
-            }}
-            className={`flex-1 pb-2.5 text-sm font-bold text-center border-b-2 transition-all ${
-              mode === 'signin'
-                ? 'text-[#6c2cf5] border-[#6c2cf5]'
-                : 'text-gray-400 border-transparent hover:text-gray-600'
-            }`}
-          >
-            기존 번호로 로그인
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setMode('signup');
-              setStep('terms');
-              setErrorMessage('');
-              setInfoMessage('');
-            }}
-            className={`flex-1 pb-2.5 text-sm font-bold text-center border-b-2 transition-all ${
-              mode === 'signup'
-                ? 'text-[#6c2cf5] border-[#6c2cf5]'
-                : 'text-gray-400 border-transparent hover:text-gray-600'
-            }`}
-          >
-            휴대폰 본인인증 가입
-          </button>
-        </div>
-
         {/* Messages */}
         {errorMessage && (
           <div className="mx-5 mt-4 p-3 bg-rose-50 border border-rose-100 rounded-xl text-xs text-rose-600 flex items-start gap-2 animate-in fade-in">
@@ -427,6 +407,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
                   <span>동의하고 다음으로</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
+
+                <div className="pt-2 text-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode('signin');
+                      setErrorMessage('');
+                      setInfoMessage('');
+                    }}
+                    className="text-xs text-gray-500 hover:text-[#6c2cf5] font-medium"
+                  >
+                    이미 계정이 있으신가요? <span className="underline font-bold text-[#6c2cf5]">기존 번호로 로그인</span>
+                  </button>
+                </div>
               </div>
             )}
 
@@ -442,9 +436,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
                       <Phone className="w-4 h-4 text-gray-400 absolute left-3.5 top-3" />
                       <input
                         type="tel"
+                        maxLength={13}
                         placeholder="010-0000-0000"
                         value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
+                        onChange={handlePhoneChange}
                         className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-gray-50 focus:bg-white text-sm border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#6c2cf5]/30 focus:border-[#6c2cf5]"
                       />
                     </div>
@@ -737,9 +732,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
                   <Phone className="w-4 h-4 text-gray-400 absolute left-3.5 top-3" />
                   <input
                     type="tel"
+                    maxLength={13}
                     placeholder="010-0000-0000"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={handlePhoneChange}
                     className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-gray-50 focus:bg-white text-sm border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#6c2cf5]/30 focus:border-[#6c2cf5]"
                   />
                 </div>

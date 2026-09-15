@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { User, Heart, Calendar, ShieldCheck, ChevronRight, Settings, Star, Award, LogOut, Sparkles, MessageSquare, Clock, Lock, CreditCard, Camera } from 'lucide-react';
-import { Appointment, CurrentUser, ReviewItem, EscrowPayment } from '../types';
+import { User, Heart, Calendar, ShieldCheck, ChevronRight, Settings, Star, Award, LogOut, Sparkles, MessageSquare, Clock, Lock, CreditCard, Camera, Send, Inbox, CheckCircle2, XCircle, ArrowRight } from 'lucide-react';
+import { Appointment, CurrentUser, ReviewItem, EscrowPayment, JoinRequest } from '../types';
 
 interface MyPageViewProps {
   currentAppointment: Appointment;
@@ -12,6 +12,11 @@ interface MyPageViewProps {
   onUpdateAvatar?: (avatar: string) => void;
   reviews?: ReviewItem[];
   escrowPayments?: EscrowPayment[];
+  sentRequests?: JoinRequest[];
+  receivedRequests?: JoinRequest[];
+  onAcceptRequest?: (requestId: string) => void;
+  onRejectRequest?: (requestId: string) => void;
+  onExploreMeetups?: () => void;
 }
 
 export const MyPageView: React.FC<MyPageViewProps> = ({
@@ -24,7 +29,13 @@ export const MyPageView: React.FC<MyPageViewProps> = ({
   onUpdateAvatar,
   reviews = [],
   escrowPayments = [],
+  sentRequests = [],
+  receivedRequests = [],
+  onAcceptRequest,
+  onRejectRequest,
+  onExploreMeetups,
 }) => {
+  const [requestTab, setRequestTab] = useState<'sent' | 'received'>('sent');
   const [activeSubTab, setActiveSubTab] = useState<'info' | 'reviews' | 'escrow'>('info');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -66,6 +77,7 @@ export const MyPageView: React.FC<MyPageViewProps> = ({
   }
 
   const diffSugar = Math.round(currentUser.sugarContent - 50);
+  const pendingReceivedCount = receivedRequests.filter((r) => r.status === 'pending').length;
 
   return (
     <div className="px-5 pt-3 pb-24 text-left space-y-4">
@@ -144,6 +156,200 @@ export const MyPageView: React.FC<MyPageViewProps> = ({
               : `기본 당도 50에서 ${Math.abs(diffSugar)} 변동되었어요.`}
           </p>
         </div>
+      </div>
+
+      {/* 1:1 동행 신청 관리: 상단 두 탭 (신청한 건 / 신청 받은 건) */}
+      <div className="bg-white rounded-[24px] p-5 shadow-[0_2px_14px_rgba(0,0,0,0.03)] space-y-4">
+        <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+          <div className="flex gap-4">
+            <button
+              type="button"
+              onClick={() => setRequestTab('sent')}
+              className={`pb-1 text-sm font-bold transition-all relative flex items-center gap-1.5 ${
+                requestTab === 'sent'
+                  ? 'text-[#6c2cf5] border-b-2 border-[#6c2cf5]'
+                  : 'text-gray-400 hover:text-gray-600'
+              }`}
+            >
+              <Send className="w-3.5 h-3.5" />
+              <span>동행 신청한 건</span>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-extrabold ${
+                requestTab === 'sent' ? 'bg-[#f0edff] text-[#6c2cf5]' : 'bg-gray-100 text-gray-500'
+              }`}>
+                {sentRequests.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setRequestTab('received')}
+              className={`pb-1 text-sm font-bold transition-all relative flex items-center gap-1.5 ${
+                requestTab === 'received'
+                  ? 'text-[#6c2cf5] border-b-2 border-[#6c2cf5]'
+                  : 'text-gray-400 hover:text-gray-600'
+              }`}
+            >
+              <Inbox className="w-3.5 h-3.5" />
+              <span>동행 신청 받은 건</span>
+              {pendingReceivedCount > 0 ? (
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full font-extrabold bg-[#ff4b4b] text-white animate-pulse">
+                  {pendingReceivedCount}
+                </span>
+              ) : (
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-extrabold ${
+                  requestTab === 'received' ? 'bg-[#f0edff] text-[#6c2cf5]' : 'bg-gray-100 text-gray-500'
+                }`}>
+                  {receivedRequests.length}
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* 탭 1: 동행 신청한 건 */}
+        {requestTab === 'sent' && (
+          <div className="space-y-3 animate-in fade-in">
+            {sentRequests.length === 0 ? (
+              <div className="py-8 text-center bg-gray-50/80 rounded-2xl space-y-2">
+                <p className="text-xs text-gray-500 font-medium">내가 신청한 동행이 아직 없습니다.</p>
+                {onExploreMeetups && (
+                  <button
+                    type="button"
+                    onClick={onExploreMeetups}
+                    className="px-3 py-1.5 bg-[#6c2cf5] text-white text-xs font-bold rounded-xl shadow-xs hover:bg-[#5820d8] transition-colors"
+                  >
+                    관심 동행 찾아보기
+                  </button>
+                )}
+              </div>
+            ) : (
+              sentRequests.map((req) => (
+                <div key={req.id} className="p-4 bg-gray-50/80 hover:bg-gray-50 rounded-2xl space-y-2 border border-gray-100/80 transition-all">
+                  <div className="flex items-start justify-between gap-2">
+                    <h4 className="text-xs font-bold text-gray-900 line-clamp-1">
+                      {req.postTitle}
+                    </h4>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
+                      req.status === 'accepted'
+                        ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                        : req.status === 'rejected'
+                        ? 'bg-gray-200 text-gray-600'
+                        : 'bg-[#f0edff] text-[#6c2cf5] border border-purple-200'
+                    }`}>
+                      {req.status === 'accepted'
+                        ? '매칭 확정 🎉'
+                        : req.status === 'rejected'
+                        ? '마감/거절'
+                        : '호스트 수락 대기중 ⏳'}
+                    </span>
+                  </div>
+
+                  <div className="p-2.5 bg-white rounded-xl text-xs text-gray-600 space-y-1 shadow-2xs">
+                    <div className="flex items-center gap-1 text-[11px] text-gray-400 font-medium">
+                      <MessageSquare className="w-3 h-3 text-purple-400" />
+                      <span>내가 남긴 소개 메시지</span>
+                    </div>
+                    <p className="text-xs text-gray-700 leading-relaxed font-normal">
+                      "{req.message}"
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-between text-[11px] text-gray-400 pt-0.5">
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      신청 {req.createdAt}
+                    </span>
+                    {req.status === 'accepted' && (
+                      <span className="text-[11px] font-bold text-emerald-600">
+                        2/2인 매칭 완료 • 약속 카드 활성화됨
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* 탭 2: 동행 신청 받은 건 */}
+        {requestTab === 'received' && (
+          <div className="space-y-3 animate-in fade-in">
+            {receivedRequests.length === 0 ? (
+              <div className="py-8 text-center bg-gray-50/80 rounded-2xl">
+                <p className="text-xs text-gray-500 font-medium">받은 동행 신청이 없습니다.</p>
+                <p className="text-[11px] text-gray-400 mt-0.5">새 동행 공고를 올리고 파트너를 모집해보세요!</p>
+              </div>
+            ) : (
+              receivedRequests.map((req) => (
+                <div key={req.id} className="p-4 bg-gray-50/80 rounded-2xl space-y-2.5 border border-gray-100/80 transition-all">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-semibold text-gray-500 bg-white px-2 py-0.5 rounded border border-gray-100 line-clamp-1 max-w-[200px]">
+                      {req.postTitle}
+                    </span>
+                    <span className="text-[10px] text-gray-400 flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      {req.createdAt}
+                    </span>
+                  </div>
+
+                  {/* 신청자 프로필 정보 */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <img
+                        src={req.requesterAvatar}
+                        alt={req.requesterName}
+                        className="w-10 h-10 rounded-full object-cover shadow-2xs"
+                      />
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-bold text-gray-900">{req.requesterName}</span>
+                          <span className="text-[10px] font-bold text-[#6c2cf5] bg-[#f0edff] px-1.5 py-0.2 rounded">
+                            인증
+                          </span>
+                        </div>
+                        <span className="text-[11px] font-semibold text-[#6c2cf5]">
+                          당도 {req.requesterSugar} 🍯
+                        </span>
+                      </div>
+                    </div>
+
+                    {req.status === 'accepted' ? (
+                      <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
+                        수락 확정됨
+                      </span>
+                    ) : req.status === 'rejected' ? (
+                      <span className="text-[11px] font-bold text-gray-400 bg-gray-100 px-2.5 py-1 rounded-lg">
+                        거절 완료
+                      </span>
+                    ) : (
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => onAcceptRequest?.(req.id)}
+                          className="px-3 py-1.5 bg-[#6c2cf5] hover:bg-[#5820d8] text-white font-bold text-xs rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
+                        >
+                          수락
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onRejectRequest?.(req.id)}
+                          className="px-2.5 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold text-xs rounded-xl transition-colors cursor-pointer"
+                        >
+                          거절
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 신청자 메시지 */}
+                  <div className="p-2.5 bg-white rounded-xl text-xs text-gray-700 leading-relaxed shadow-2xs font-normal">
+                    "{req.message}"
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </div>
 
       {/* Quick Stats with interactive Tab switching */}

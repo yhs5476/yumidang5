@@ -1,21 +1,48 @@
-import React, { useState } from 'react';
-import { ChevronRight, Sparkles } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { ChevronRight, Sparkles, Bot } from 'lucide-react';
 import { EventBannerItem } from '../types';
 
 interface EventBannerProps {
   events: EventBannerItem[];
   onSelectEvent: (event: EventBannerItem) => void;
   onViewAllEvents: () => void;
+  currentWeek?: number;
 }
 
 export const EventBanner: React.FC<EventBannerProps> = ({
   events,
   onSelectEvent,
   onViewAllEvents,
+  currentWeek = 2,
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  const currentEvent = events[currentIndex] || events[0];
+  // AI 크롤링 연동 원칙: 해당 주차(9월 2주차)에 시작되는 이벤트만 홈 배너에 자동 표시
+  const currentWeekEvents = events.filter(
+    (event) => (event.startWeek ?? event.week ?? 2) === currentWeek && !event.isEnded
+  );
+
+  const displayEvents = currentWeekEvents.length > 0 ? currentWeekEvents : events.slice(0, 4);
+
+  const handleScroll = () => {
+    if (!scrollRef.current) return;
+    const { scrollLeft, clientWidth } = scrollRef.current;
+    const newIndex = Math.round(scrollLeft / (clientWidth * 0.8));
+    if (newIndex >= 0 && newIndex < displayEvents.length && newIndex !== currentIndex) {
+      setCurrentIndex(newIndex);
+    }
+  };
+
+  const scrollToSlide = (idx: number) => {
+    setCurrentIndex(idx);
+    if (!scrollRef.current) return;
+    const cardWidth = scrollRef.current.clientWidth * 0.85;
+    scrollRef.current.scrollTo({
+      left: idx * cardWidth,
+      behavior: 'smooth',
+    });
+  };
 
   return (
     <section className="px-5 pt-3 pb-5">
@@ -24,23 +51,31 @@ export const EventBanner: React.FC<EventBannerProps> = ({
         <div className="flex items-center gap-1.5">
           <Sparkles className="w-5 h-5 text-[#8b5cf6] fill-[#8b5cf6]/20" />
           <h2 className="text-[18px] font-bold text-gray-900 tracking-tight">
-            9월 2주차 주목할 이벤트
+            9월 {currentWeek}주차 주목할 이벤트
           </h2>
+          <span className="bg-[#f0edff] text-[#6c2cf5] text-[10.5px] font-bold px-2 py-0.5 rounded-full flex items-center gap-0.5">
+            <Bot className="w-3 h-3" />
+            AI추천
+          </span>
         </div>
         <button
           id="btn-view-all-events"
           onClick={onViewAllEvents}
-          className="text-[13.5px] text-gray-500 hover:text-gray-900 font-medium flex items-center transition-colors"
+          className="text-[13.5px] text-gray-500 hover:text-[#6c2cf5] font-semibold flex items-center transition-colors group cursor-pointer"
         >
-          전체보기
-          <ChevronRight className="w-4 h-4 ml-0.5 text-gray-400" />
+          <span>전체보기</span>
+          <ChevronRight className="w-4 h-4 ml-0.5 text-gray-400 group-hover:text-[#6c2cf5] transform group-hover:translate-x-0.5 transition-all" />
         </button>
       </div>
 
       {/* Carousel Container with Peek Effect */}
       <div className="relative overflow-hidden">
-        <div className="flex items-stretch gap-3 overflow-x-auto scrollbar-none snap-x snap-mandatory py-0.5">
-          {events.map((event, idx) => {
+        <div
+          ref={scrollRef}
+          onScroll={handleScroll}
+          className="flex items-stretch gap-3 overflow-x-auto scrollbar-none snap-x snap-mandatory py-0.5"
+        >
+          {displayEvents.map((event, idx) => {
             const isMain = idx === currentIndex;
             return (
               <div
@@ -64,10 +99,13 @@ export const EventBanner: React.FC<EventBannerProps> = ({
                 {/* Dark Gradient Overlay for optimal legibility */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10" />
 
-                {/* Top Badge: "시즌 이벤트" */}
-                <div className="absolute top-3.5 left-3.5 z-10">
+                {/* Top Badge: 카테고리 / 행사 형태 */}
+                <div className="absolute top-3.5 left-3.5 z-10 flex items-center gap-1.5">
                   <span className="inline-block bg-[#ff5d2b] text-white text-[12px] font-bold px-2.5 py-1 rounded-[8px] shadow-sm">
                     {event.badge}
+                  </span>
+                  <span className="bg-black/50 backdrop-blur-xs text-white text-[11px] font-medium px-2 py-0.5 rounded-[7px]">
+                    9월 {event.startWeek ?? event.week}주차 시작
                   </span>
                 </div>
 
@@ -96,17 +134,17 @@ export const EventBanner: React.FC<EventBannerProps> = ({
           })}
         </div>
 
-        {/* Carousel Indicator Bars (Identical to screenshot) */}
+        {/* Carousel Indicator Bars */}
         <div className="flex items-center justify-center gap-1.5 mt-3.5">
-          {events.map((_, idx) => (
+          {displayEvents.map((_, idx) => (
             <button
               key={idx}
               id={`carousel-dot-${idx}`}
-              onClick={() => setCurrentIndex(idx)}
+              onClick={() => scrollToSlide(idx)}
               className={`h-[4px] rounded-full transition-all duration-300 ${
                 idx === currentIndex
-                  ? 'w-9 bg-[#6c2cf5]'
-                  : 'w-12 bg-gray-200 hover:bg-gray-300'
+                  ? 'w-10 bg-[#6c2cf5]'
+                  : 'w-10 bg-gray-200 hover:bg-gray-300'
               }`}
               aria-label={`이벤트 슬라이드 ${idx + 1}`}
             />
