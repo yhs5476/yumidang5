@@ -862,6 +862,7 @@ export default function App() {
           <div className="flex-1 flex flex-col">
             <ChatView
               appointment={appointment}
+              currentUser={currentUser}
               onOpenDashboard={() => setIsDashboardOpen(true)}
               onUpdateAppointment={handleUpdateAppointment}
               onOpenVoiceCall={() => setIsVoiceCallOpen(true)}

@@ -1,9 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, MapPin, Clock, CheckCheck, Info, CalendarClock, Check, X, Sparkles, PhoneCall, ShieldCheck, ShieldAlert, AlertTriangle, Star } from 'lucide-react';
-import { Appointment, ScheduleProposal } from '../types';
+import { Send, MapPin, Clock, CheckCheck, Info, CalendarClock, Check, X, Sparkles, PhoneCall, ShieldCheck, ShieldAlert, AlertTriangle, Star, Wifi, UserCheck, Edit3 } from 'lucide-react';
+import { Appointment, ScheduleProposal, CurrentUser } from '../types';
+import { supabase } from '../lib/supabase';
 
 interface ChatViewProps {
   appointment: Appointment;
+  currentUser?: CurrentUser | null;
   onOpenDashboard: () => void;
   onUpdateAppointment?: (newSchedule: { dateTime: string; location: string }) => void;
   onOpenVoiceCall?: () => void;
@@ -15,6 +17,8 @@ interface ChatViewProps {
 interface Message {
   id: string;
   sender: 'me' | 'partner';
+  senderId?: string;
+  senderName?: string;
   text: string;
   time: string;
   proposal?: ScheduleProposal;
@@ -22,6 +26,7 @@ interface Message {
 
 export const ChatView: React.FC<ChatViewProps> = ({
   appointment,
+  currentUser,
   onOpenDashboard,
   onUpdateAppointment,
   onOpenVoiceCall,
@@ -29,33 +34,110 @@ export const ChatView: React.FC<ChatViewProps> = ({
   onOpenReport,
   onOpenReview,
 }) => {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 'm1',
-      sender: 'partner',
-      text: '안녕하세요! 이번 토요일 식사 동행 매칭되어 반갑습니다 :)',
-      time: '어제 오후 5:20',
-    },
-    {
-      id: 'm2',
-      sender: 'me',
-      text: `안녕하세요 ${appointment.partnerName}님! 반갑습니다. 식사 약속 기대되네요!`,
-      time: '어제 오후 5:24',
-    },
-    {
-      id: 'm3',
-      sender: 'partner',
-      text: '제가 2시 예약 미리 메모해 두었어요. 혹시 시간이나 장소 편하신 곳 있으시면 언제든 말씀해주세요!',
-      time: '오전 10:12',
-    },
-  ]);
+  // 1. 내 식별자 및 닉네임 (로그인 회원 또는 기기별 게스트 식별자)
+  const [myId, setMyId] = useState<string>(() => {
+    if (currentUser?.isLoggedIn && currentUser.id) return currentUser.id;
+    let stored = localStorage.getItem('yumidang_chat_guest_id');
+    if (!stored) {
+      stored = 'user_' + Math.random().toString(36).substring(2, 9);
+      localStorage.setItem('yumidang_chat_guest_id', stored);
+    }
+    return stored;
+  });
 
+  const [myName, setMyName] = useState<string>(() => {
+    if (currentUser?.isLoggedIn) return currentUser.nickname || currentUser.maskedName || '나';
+    let stored = localStorage.getItem('yumidang_chat_guest_name');
+    if (!stored) {
+      stored = '동행이웃_' + Math.floor(1000 + Math.random() * 9000);
+      localStorage.setItem('yumidang_chat_guest_name', stored);
+    }
+    return stored;
+  });
+
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [newNameInput, setNewNameInput] = useState('');
+  const [isConnected, setIsConnected] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputVal, setInputVal] = useState('');
   const [isProposalModalOpen, setIsProposalModalOpen] = useState(false);
   const [proposedDateTime, setProposedDateTime] = useState('2026.9.12(토) 15:00');
   const [proposedLocation, setProposedLocation] = useState(appointment.location);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const roomKey = appointment.id || 'appt-gangnam-brunch';
+
+  // CurrentUser 변경 시 내 식별자 동기화
+  useEffect(() => {
+    if (currentUser?.isLoggedIn && currentUser.id) {
+      setMyId(currentUser.id);
+      setMyName(currentUser.nickname || currentUser.maskedName || '나');
+    }
+  }, [currentUser]);
+
+  // 시간 포맷 헬퍼
+  const formatTime = (isoString?: string) => {
+    if (!isoString) return '방금';
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return '방금';
+    return d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  // 2. Supabase DB 주기적 폴링 (Polling) 방식으로 메시지 동기화
+  useEffect(() => {
+    let isMounted = true;
+
+    const pollMessages = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('chat_messages')
+          .select('*')
+          .eq('room_key', roomKey)
+          .order('created_at', { ascending: true });
+
+        if (error) {
+          console.error('메시지 폴링 실패:', error);
+          if (isMounted) setIsConnected(false);
+          return;
+        }
+
+        if (isMounted && data) {
+          setIsConnected(true);
+          const mapped: Message[] = data.map((item: any) => ({
+            id: item.id,
+            sender: item.sender_id === myId ? 'me' : 'partner',
+            senderId: item.sender_id,
+            senderName: item.sender_name || (item.sender_id === myId ? myName : appointment.partnerName),
+            text: item.message,
+            time: formatTime(item.created_at),
+          }));
+
+          // 불필요한 리렌더링 방지: 마지막 메시지 ID 또는 개수가 다를 때만 갱신
+          setMessages((prev) => {
+            if (prev.length === mapped.length && prev[prev.length - 1]?.id === mapped[mapped.length - 1]?.id) {
+              return prev;
+            }
+            return mapped;
+          });
+        }
+      } catch (err) {
+        console.error('메시지 폴링 예외:', err);
+        if (isMounted) setIsConnected(false);
+      }
+    };
+
+    // 첫 진입 시 즉시 1회 호출
+    pollMessages();
+
+    // 1.5초마다 폴링 실행 (HTTP GET)
+    const intervalId = setInterval(pollMessages, 1500);
+
+    return () => {
+      isMounted = false;
+      clearInterval(intervalId);
+    };
+  }, [roomKey, myId, myName, appointment.partnerName]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -65,88 +147,92 @@ export const ChatView: React.FC<ChatViewProps> = ({
     scrollToBottom();
   }, [messages]);
 
-  const handleSend = (e: React.FormEvent) => {
+  // 3. 메시지 전송 (Supabase DB INSERT -> 실시간 브로드캐스트)
+  const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputVal.trim()) return;
+    const trimmed = inputVal.trim();
+    if (!trimmed || isSending) return;
 
-    const newMsg: Message = {
-      id: 'm-' + Date.now(),
-      sender: 'me',
-      text: inputVal.trim(),
-      time: '방금',
-    };
-
-    setMessages((prev) => [...prev, newMsg]);
     setInputVal('');
+    setIsSending(true);
 
-    // Auto simulated reply
-    setTimeout(() => {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: 'm-' + (Date.now() + 1),
-          sender: 'partner',
-          text: '확인했습니다! 내일 맛있는 식사 하면서 즐거운 시간 보내요 😊',
-          time: '방금',
-        },
-      ]);
-    }, 1200);
+    try {
+      const { data, error } = await supabase
+        .from('chat_messages')
+        .insert({
+          room_key: roomKey,
+          sender_id: myId,
+          sender_name: myName,
+          message: trimmed,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('메시지 전송 에러:', error);
+        // DB 전송 실패 시 로컬에서라도 유지
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: 'local-' + Date.now(),
+            sender: 'me',
+            senderName: myName,
+            text: trimmed,
+            time: '방금',
+          },
+        ]);
+      } else if (data) {
+        // 성공 시 상태에 즉시 반영 (Realtime 중복 방지 로직 적용됨)
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === data.id)) return prev;
+          return [
+            ...prev,
+            {
+              id: data.id,
+              sender: 'me',
+              senderId: myId,
+              senderName: myName,
+              text: data.message,
+              time: formatTime(data.created_at),
+            },
+          ];
+        });
+      }
+    } catch (err) {
+      console.error('메시지 전송 예외:', err);
+    } finally {
+      setIsSending(false);
+    }
   };
 
-  const handleSendProposal = (e: React.FormEvent) => {
+  // 닉네임 변경 저장
+  const handleSaveName = () => {
+    if (newNameInput.trim()) {
+      const updated = newNameInput.trim();
+      setMyName(updated);
+      localStorage.setItem('yumidang_chat_guest_name', updated);
+      setIsEditingName(false);
+    }
+  };
+
+  // 일정 제안 전송
+  const handleSendProposal = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!proposedDateTime.trim() || !proposedLocation.trim()) return;
 
-    const newProposal: ScheduleProposal = {
-      id: 'prop-' + Date.now(),
-      newDateTime: proposedDateTime.trim(),
-      newLocation: proposedLocation.trim(),
-      status: 'pending',
-      proposerName: '나',
-    };
+    const proposalText = `[일정/장소 변경 제안] 📅 ${proposedDateTime.trim()} / 📍 ${proposedLocation.trim()} (으)로 변경을 제안합니다.`;
 
-    const newMsg: Message = {
-      id: 'm-prop-' + Date.now(),
-      sender: 'me',
-      text: `[일정/장소 변경 제안] ${proposedDateTime.trim()} / ${proposedLocation.trim()} (으)로 변경을 제안합니다.`,
-      time: '방금',
-      proposal: newProposal,
-    };
-
-    setMessages((prev) => [...prev, newMsg]);
-    setIsProposalModalOpen(false);
-
-    // Auto partner acceptance simulation after 2 seconds
-    setTimeout(() => {
-      setMessages((prev) =>
-        prev.map((msg) => {
-          if (msg.proposal && msg.proposal.id === newProposal.id) {
-            return {
-              ...msg,
-              proposal: { ...msg.proposal, status: 'accepted' },
-            };
-          }
-          return msg;
-        })
-      );
-
-      if (onUpdateAppointment) {
-        onUpdateAppointment({
-          dateTime: proposedDateTime.trim(),
-          location: proposedLocation.trim(),
-        });
-      }
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: 'm-reply-' + Date.now(),
-          sender: 'partner',
-          text: `제안해주신 시간(${proposedDateTime.trim()})과 장소 좋습니다! 일정 변경 수락했어요. 그때 뵐게요! 👍`,
-          time: '방금',
-        },
-      ]);
-    }, 2000);
+    try {
+      await supabase.from('chat_messages').insert({
+        room_key: roomKey,
+        sender_id: myId,
+        sender_name: myName,
+        message: proposalText,
+      });
+      setIsProposalModalOpen(false);
+    } catch (err) {
+      console.error('제안 전송 에러:', err);
+    }
   };
 
   const handleAcceptProposal = (msgId: string, proposal: ScheduleProposal) => {
@@ -206,6 +292,61 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
   return (
     <div className="flex flex-col h-[calc(100vh-125px)] bg-[#f6f7fb] text-left">
+      {/* Top Polling Status & My Profile Bar */}
+      <div className="bg-slate-900 text-white px-4 py-1.5 flex items-center justify-between text-[11px]">
+        <div className="flex items-center gap-1.5">
+          <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+          <span className="font-medium text-slate-200">
+            {isConnected ? '폴링 동기화 중 (1.5초 주기)' : '서버 연결 중...'}
+          </span>
+          <span className="text-slate-500">|</span>
+          <span className="text-slate-300">방 ID: {roomKey}</span>
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <UserCheck className="w-3.5 h-3.5 text-purple-400" />
+          {isEditingName ? (
+            <div className="flex items-center gap-1">
+              <input
+                type="text"
+                value={newNameInput}
+                onChange={(e) => setNewNameInput(e.target.value)}
+                placeholder={myName}
+                className="bg-slate-800 text-white text-[11px] px-1.5 py-0.5 rounded border border-slate-700 w-24 outline-none focus:border-purple-400"
+                autoFocus
+              />
+              <button
+                onClick={handleSaveName}
+                className="bg-purple-600 hover:bg-purple-500 text-white px-1.5 py-0.5 rounded text-[10px] font-bold"
+              >
+                저장
+              </button>
+              <button
+                onClick={() => setIsEditingName(false)}
+                className="text-slate-400 hover:text-white px-1 text-[10px]"
+              >
+                취소
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1">
+              <span className="text-slate-300">내 닉네임:</span>
+              <span className="font-bold text-white bg-slate-800 px-1.5 py-0.5 rounded">{myName}</span>
+              <button
+                onClick={() => {
+                  setNewNameInput(myName);
+                  setIsEditingName(true);
+                }}
+                title="닉네임 변경 (다른 사용자로 테스트)"
+                className="text-slate-400 hover:text-purple-300 p-0.5"
+              >
+                <Edit3 className="w-3 h-3" />
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Top Partner Header */}
       <div className="bg-white px-4 py-3 shadow-xs flex items-center justify-between z-10">
         <div className="flex items-center gap-2.5">
@@ -394,14 +535,21 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   )}
                 </div>
               ) : (
-                <div
-                  className={`max-w-[78%] px-4 py-2.5 rounded-[20px] text-[13.5px] leading-relaxed shadow-2xs ${
-                    isMe
-                      ? 'bg-[#6c2cf5] text-white rounded-tr-xs'
-                      : 'bg-white text-gray-900 rounded-tl-xs'
-                  }`}
-                >
-                  {msg.text}
+                <div className="flex flex-col">
+                  {!isMe && (
+                    <span className="text-[11px] font-bold text-gray-600 mb-1 px-1">
+                      {msg.senderName || appointment.partnerName}
+                    </span>
+                  )}
+                  <div
+                    className={`max-w-[78%] px-4 py-2.5 rounded-[20px] text-[13.5px] leading-relaxed shadow-2xs ${
+                      isMe
+                        ? 'bg-[#6c2cf5] text-white rounded-tr-xs ml-auto'
+                        : 'bg-white text-gray-900 rounded-tl-xs mr-auto'
+                    }`}
+                  >
+                    {msg.text}
+                  </div>
                 </div>
               )}
 
