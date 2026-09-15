@@ -57,6 +57,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
   const [isEditingName, setIsEditingName] = useState(false);
   const [newNameInput, setNewNameInput] = useState('');
+  const [isEditingId, setIsEditingId] = useState(false);
+  const [newIdInput, setNewIdInput] = useState('');
   const [isConnected, setIsConnected] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -215,6 +217,16 @@ export const ChatView: React.FC<ChatViewProps> = ({
     }
   };
 
+  // ID 변경 저장
+  const handleSaveId = () => {
+    if (newIdInput.trim()) {
+      const updated = newIdInput.trim();
+      setMyId(updated);
+      localStorage.setItem('yumidang_chat_guest_id', updated);
+      setIsEditingId(false);
+    }
+  };
+
   // 일정 제안 전송
   const handleSendProposal = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -344,6 +356,48 @@ export const ChatView: React.FC<ChatViewProps> = ({
               </button>
             </div>
           )}
+        {/* ID display and edit */}
+        <div className="flex items-center gap-1">
+          <span className="text-slate-300">내 ID:</span>
+          {isEditingId ? (
+            <div className="flex items-center gap-1">
+              <input
+                type="text"
+                value={newIdInput}
+                onChange={(e) => setNewIdInput(e.target.value)}
+                placeholder={myId}
+                className="bg-slate-800 text-white text-[11px] px-1.5 py-0.5 rounded border border-slate-700 w-24 outline-none focus:border-purple-400"
+                autoFocus
+              />
+              <button
+                onClick={handleSaveId}
+                className="bg-purple-600 hover:bg-purple-500 text-white px-1.5 py-0.5 rounded text-[10px] font-bold"
+              >
+                저장
+              </button>
+              <button
+                onClick={() => setIsEditingId(false)}
+                className="text-slate-400 hover:text-white px-1 text-[10px]"
+              >
+                취소
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1">
+              <span className="font-bold text-white bg-slate-800 px-1.5 py-0.5 rounded">{myId}</span>
+              <button
+                onClick={() => {
+                  setNewIdInput(myId);
+                  setIsEditingId(true);
+                }}
+                title="ID 변경 (다른 사용자로 테스트)"
+                className="text-slate-400 hover:text-purple-300 p-0.5"
+              >
+                <Edit3 className="w-3 h-3" />
+              </button>
+            </div>
+          )}
+        </div>
         </div>
       </div>
 
